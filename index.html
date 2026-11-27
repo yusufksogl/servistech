@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="tr" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Apple iOS / Android Mobil Uygulama (PWA) Uyumluluk Etiketleri -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ServisTech">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="https://placehold.co/180x180/2563eb/ffffff.png?text=ST">
+    <link id="app-favicon" rel="icon" type="image/png" href="https://placehold.co/180x180/2563eb/ffffff.png?text=ST">
+    <link id="pwa-manifest" rel="manifest" href="">
+    <title>ServisTech - Teknik Servis Yönetim Paneli</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Mobil dokunma deneyimi ve kaydırma iyileştirmeleri */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior-y: none;
+        }
+        /* Özel Kaydırma Çubuğu */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.4);
+            border-radius: 9999px;
+        }
+        /* Yazdırma (Servis Fişi) Stilleri */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #receipt-print-area, #receipt-print-area * {
+                visibility: visible;
+            }
+            #receipt-print-area {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                padding: 20px;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        /* iOS Safe Area Desteği */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 min-h-screen flex flex-col">
+
+    <!-- Üst Bildirim (Toast) Alanı -->
+    <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Üst Navigasyon (Header) -->
+    <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- Marka / Logo Alanı -->
+            <div class="flex items-center gap-3 min-w-0 cursor-pointer" onclick="switchTab('dashboard')">
+                <div id="header-logo-container" class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0 overflow-hidden">
+                    <i data-lucide="cpu" class="w-6 h-6"></i>
+                </div>
+                <div class="min-w-0">
+                    <h1 id="header-business-name" class="font-bold text-base sm:text-lg tracking-tight truncate text-slate-900 dark:text-white">ServisTech</h1>
+                    <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span id="sync-status-text" class="truncate">Bağlanıyor...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Masaüstü Hızlı Menü & Araçlar -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button onclick="openNewTicketModal()" class="hidden sm:inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-medium text-sm px-4 py-2.5 rounded-xl shadow-sm shadow-blue-600/20 transition-all">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Yeni Servis Kaydı</span>
+                </button>
+
+                <!-- Ana Ekrana Ekle Rehberi Butonu -->
+                <button onclick="openPwaGuideModal()" title="Telefona Uygulama Olarak Ekle" class="p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <i data-lucide="smartphone" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Tema Değiştirici (Koyu / Açık Mod) -->
+                <button onclick="toggleDarkMode()" title="Tema Değiştir" class="p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <i data-lucide="moon" id="theme-icon-dark" class="w-5 h-5 hidden dark:block"></i>
+                    <i data-lucide="sun" id="theme-icon-light" class="w-5 h-5 block dark:hidden"></i>
+                </button>
+
+                <!-- Firma & Ayarlar Butonu -->
+                <button onclick="openSettingsModal()" title="Firma Ayarları & Logo" class="p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Ana İçerik Düzeni (Masaüstü Sidebar + İçerik Alanı) -->
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-10 flex flex-col lg:flex-row gap-6">
+        
+        <!-- Masaüstü Sol Menü (Sidebar) -->
+        <aside class="hidden lg:flex flex-col w-64 shrink-0 gap-2">
+            <nav class="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
+                <button onclick="switchTab('dashboard')" id="nav-desk-dashboard" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 transition-colors">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>Genel Bakış</span>
+                </button>
+                <button onclick="switchTab('tickets')" id="nav-desk-tickets" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                    <i data-lucide="wrench" class="w-5 h-5"></i>
+                    <span>Servis Kayıtları</span>
+                    <span id="sidebar-badge-count" class="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">0</span>
+                </button>
+                <button onclick="openNewTicketModal()" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                    <i data-lucide="file-plus-2" class="w-5 h-5"></i>
+                    <span>Yeni Cihaz Kabulü</span>
+                </button>
+                <button onclick="openSettingsModal()" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                    <i data-lucide="building-2" class="w-5 h-5"></i>
+                    <span>Firma & Logo Ayarları</span>
+                </button>
+            </nav>
+
+            <!-- Cihazlar Arası Senkronizasyon Bilgi Kartı -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-900 dark:to-slate-950 text-white rounded-2xl p-4 border border-slate-700/50 shadow-sm mt-2">
+                <div class="flex items-center gap-2 text-blue-400 font-semibold text-xs uppercase tracking-wider mb-2">
+                    <i data-lucide="cloud-check" class="w-4 h-4"></i>
+                    <span>Otomatik Bulut Kayıt</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                    Tüm kayıtlarınız ve logo ayarlarınız anında buluta kaydedilir. Telefon ve bilgisayardan eşzamanlı yönetebilirsiniz.
+                </p>
+                <button onclick="openPwaGuideModal()" class="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span>iOS / Android Kurulumu</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Ana İçerik Alanı -->
+        <main class="flex-1 min-w-0 space-y-6">
+
+            <!-- BÖLÜM 1: ÖZET İSTATİSTİKLER (DASHBOARD) -->
+            <section id="section-dashboard" class="space-y-6">
+                <!-- İstatistik Kartları Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+                    <!-- Toplam / Bekleyen -->
+                    <div onclick="filterByStatusFromCard('Kabul Edildi')" class="cursor-pointer bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Yeni / Bekleyen</span>
+                            <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                                <i data-lucide="clock" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div id="stat-waiting" class="text-2xl font-extrabold text-slate-900 dark:text-white">0</div>
+                    </div>
+
+                    <!-- İşlemde / Onarımda -->
+                    <div onclick="filterByStatusFromCard('Onarımda')" class="cursor-pointer bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">İşlemde / Tespit</span>
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                                <i data-lucide="wrench" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div id="stat-inprogress" class="text-2xl font-extrabold text-slate-900 dark:text-white">0</div>
+                    </div>
+
+                    <!-- Parça Bekliyor -->
+                    <div onclick="filterByStatusFromCard('Parça Bekliyor')" class="cursor-pointer bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Parça Bekliyor</span>
+                            <div class="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                                <i data-lucide="package-search" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div id="stat-parts" class="text-2xl font-extrabold text-slate-900 dark:text-white">0</div>
+                    </div>
+
+                    <!-- Teslime Hazır & Teslim Edildi -->
+                    <div onclick="filterByStatusFromCard('Hazır / Teslime Hazır')" class="cursor-pointer bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Hazır / Teslim</span>
+                            <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div id="stat-completed" class="text-2xl font-extrabold text-slate-900 dark:text-white">0</div>
+                    </div>
+
+                    <!-- Toplam Ciro / Kazanç -->
+                    <div class="col-span-2 sm:col-span-2 xl:col-span-1 bg-gradient-to-br from-blue-600 to-indigo-700 p-4 rounded-2xl text-white shadow-md shadow-blue-600/15">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-blue-100">Toplam Servis Tutarı</span>
+                            <div class="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
+                                <i data-lucide="wallet" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div id="stat-revenue" class="text-2xl font-extrabold tracking-tight">₺0</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BÖLÜM 2: ARAMA, FİLTRELEME VE SERVİS KAYITLARI LİSTESİ -->
+            <section id="section-tickets" class="space-y-4">
+                <!-- Arama ve Filtre Çubuğu -->
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="search-input" oninput="renderTickets()" placeholder="Müşteri adı, telefon, cihaz modeli veya takip no ara..." 
+                            class="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="status-filter" onchange="renderTickets()" 
+                            class="flex-1 sm:w-48 px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                            <option value="ALL">Tüm Durumlar</option>
+                            <option value="Kabul Edildi">🟡 Kabul Edildi</option>
+                            <option value="Arıza Tespiti">🔵 Arıza Tespiti</option>
+                            <option value="Parça Bekliyor">🟣 Parça Bekliyor</option>
+                            <option value="Onarımda">🟠 Onarımda</option>
+                            <option value="Hazır / Teslime Hazır">🟢 Teslime Hazır</option>
+                            <option value="Teslim Edildi">⚪ Teslim Edildi</option>
+                        </select>
+                        <button onclick="resetFilters()" title="Filtreleri Temizle" class="px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kayıt Listesi Başlığı -->
+                <div class="flex items-center justify-between px-1">
+                    <h2 class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        <span>Aktif & Geçmiş Servis Kayıtları</span>
+                        <span id="filtered-count-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">0</span>
+                    </h2>
+                    <button onclick="openNewTicketModal()" class="sm:hidden inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Yeni Ekle</span>
+                    </button>
+                </div>
+
+                <!-- Servis Kartları Container -->
+                <div id="tickets-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dinamik olarak JS ile doldurulacak -->
+                </div>
+
+                <!-- Boş Durum (Kayıt Yoksa) -->
+                <div id="empty-state" class="hidden bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center">
+                    <div class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="laptop" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Henüz Servis Kaydı Bulunmuyor</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-5">
+                        Müşterilerinizden teslim aldığınız bilgisayar, laptop veya cihazları kaydederek arıza ve onarım sürecini kolayca takip edin.
+                    </p>
+                    <button onclick="openNewTicketModal()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-sm transition-all">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>İlk Servis Kaydını Oluştur</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MOBİL ALT NAVİGASYON BARI (iOS & Android Uygulama Hissi) -->
+    <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe">
+        <div class="grid grid-cols-4 h-16 items-center px-2">
+            <button onclick="switchTab('dashboard')" id="nav-mob-dashboard" class="flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400 py-1">
+                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                <span class="text-[11px] font-semibold">Özet</span>
+            </button>
+            <button onclick="switchTab('tickets')" id="nav-mob-tickets" class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 py-1">
+                <i data-lucide="wrench" class="w-5 h-5"></i>
+                <span class="text-[11px] font-medium">Kayıtlar</span>
+            </button>
+            <button onclick="openNewTicketModal()" class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 py-1">
+                <div class="w-10 h-10 -mt-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/30">
+                    <i data-lucide="plus" class="w-6 h-6"></i>
+                </div>
+                <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400">Yeni Kayıt</span>
+            </button>
+            <button onclick="openSettingsModal()" class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 py-1">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+                <span class="text-[11px] font-medium">Ayarlar</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: YENİ / DÜZENLE SERVİS KAYDI FORMU                           -->
+    <!-- ===================================================================== -->
+    <div id="ticket-modal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="clipboard-edit" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 id="ticket-modal-title" class="font-bold text-base sm:text-lg text-slate-900 dark:text-white">Yeni Servis Kaydı</h3>
+                        <p id="ticket-modal-subtitle" class="text-xs text-slate-500">Müşteri ve cihaz bilgilerini eksiksiz doldurun</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('ticket-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form Body -->
+            <form id="ticket-form" onsubmit="handleTicketSubmit(event)" class="p-6 overflow-y-auto space-y-4">
+                <input type="hidden" id="ticket-id">
+                <input type="hidden" id="ticket-code">
+
+                <!-- Müşteri Bilgileri -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Müşteri Adı Soyadı *</label>
+                        <input type="text" id="cust-name" required placeholder="Örn: Ahmet Yılmaz"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Telefon Numarası *</label>
+                        <input type="tel" id="cust-phone" required placeholder="Örn: 0532 123 45 67"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Cihaz Bilgileri -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Cihaz Türü *</label>
+                        <select id="device-type" required
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option value="Laptop / Notebook">Laptop / Notebook</option>
+                            <option value="Masaüstü PC">Masaüstü PC</option>
+                            <option value="MacBook / iMac">MacBook / iMac</option>
+                            <option value="All-in-One PC">All-in-One PC</option>
+                            <option value="Oyun Konsolu / Diğer">Oyun Konsolu / Diğer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Marka & Model *</label>
+                        <input type="text" id="device-model" required placeholder="Örn: Lenovo ThinkPad X1"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Seri No / Şifre</label>
+                        <input type="text" id="device-serial" placeholder="Opsiyonel"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Teslim Alınan Aksesuarlar (Seçmeli) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Cihazla Birlikte Teslim Alınan Aksesuarlar</label>
+                    <div id="accessories-selector" class="flex flex-wrap gap-2">
+                        <button type="button" onclick="toggleChip(this, 'accessory')" data-value="Şarj Adaptörü / Kablosu" class="chip-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">🔌 Şarj Adaptörü</button>
+                        <button type="button" onclick="toggleChip(this, 'accessory')" data-value="Laptop Çantası / Kılıf" class="chip-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">💼 Çanta / Kılıf</button>
+                        <button type="button" onclick="toggleChip(this, 'accessory')" data-value="Mouse / Alıcı" class="chip-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">🖱️ Mouse</button>
+                        <button type="button" onclick="toggleChip(this, 'accessory')" data-value="Harici Disk / USB" class="chip-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">💾 Harici Disk / USB</button>
+                        <button type="button" onclick="toggleChip(this, 'accessory')" data-value="Batarya Yok" class="chip-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">🔋 Batarya Yok</button>
+                        <button type="button" onclick="toggleChip(this, 'accessory')" data-value="Sadece Cihaz (Aksesuarsız)" class="chip-btn px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">💻 Sadece Cihaz</button>
+                    </div>
+                </div>
+
+                <!-- Arıza Açıklaması (Hızlı Seçim + Özel Metin) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Müşteri Şikayeti / Arıza Seçimi *</label>
+                    <div id="issue-chips" class="flex flex-wrap gap-1.5 mb-2.5">
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Cihaz hiç açılmıyor / güç gelmiyor', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Açılmıyor</button>
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Ekran kırık / görüntü gelmiyor', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Ekran / Görüntü Yok</button>
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Aşırı ısınma ve fan sesi / kapanma', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Isınma / Fan Sesi</button>
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Şarj almıyor / batarya çabuk bitiyor', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Şarj / Batarya</button>
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Sıvı teması mevcut', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Sıvı Teması</button>
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Sistem yavaş / mavi ekran hatası', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Yavaşlama / Mavi Ekran</button>
+                        <button type="button" onclick="appendPresetText('issue-desc', 'Klavye / Touchpad / Menteşe arızası', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 transition-colors">+ Klavye / Menteşe</button>
+                    </div>
+                    <textarea id="issue-desc" rows="2" required placeholder="Yukarıdan seçebilir veya arıza detayını elle yazabilirsiniz..."
+                        class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                </div>
+
+                <!-- Teknik Servis Yapılacak İşlemler (Hızlı Seçim + Özel Metin) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Yapılacak İşlemler / Teknisyen Notu</label>
+                    <div id="action-chips" class="flex flex-wrap gap-1.5 mb-2.5">
+                        <button type="button" onclick="appendPresetText('tech-notes', 'Format + Windows & Sürücü Kurulumu', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ Format & Kurulum</button>
+                        <button type="button" onclick="appendPresetText('tech-notes', 'Detaylı İç Temizlik + Termal Macun Yenileme', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ Termal Bakım & Temizlik</button>
+                        <button type="button" onclick="appendPresetText('tech-notes', 'SSD / RAM Yükseltme İşlemi', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ SSD / RAM Yükseltme</button>
+                        <button type="button" onclick="appendPresetText('tech-notes', 'Anakart / Devre Onarımı', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ Anakart Onarımı</button>
+                        <button type="button" onclick="appendPresetText('tech-notes', 'Ekran / Panel Değişimi', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ Ekran Değişimi</button>
+                        <button type="button" onclick="appendPresetText('tech-notes', 'Batarya / Şarj Soketi Değişimi', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ Batarya / Soket</button>
+                        <button type="button" onclick="appendPresetText('tech-notes', 'Veri Kurtarma & Yedekleme', this)" class="preset-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 transition-colors">+ Veri Kurtarma</button>
+                    </div>
+                    <textarea id="tech-notes" rows="2" placeholder="Yukarıdan işlem seçebilir veya teknik not yazabilirsiniz..."
+                        class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                </div>
+
+                <!-- Durum ve Ücret -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Servis Durumu</label>
+                        <select id="ticket-status"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium">
+                            <option value="Kabul Edildi">🟡 Kabul Edildi</option>
+                            <option value="Arıza Tespiti">🔵 Arıza Tespiti</option>
+                            <option value="Parça Bekliyor">🟣 Parça Bekliyor</option>
+                            <option value="Onarımda">🟠 Onarımda</option>
+                            <option value="Hazır / Teslime Hazır">🟢 Hazır / Teslime Hazır</option>
+                            <option value="Teslim Edildi">⚪ Teslim Edildi</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tahmini / Net Ücret (₺)</label>
+                        <input type="number" id="ticket-cost" min="0" step="1" placeholder="0"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none font-semibold">
+                    </div>
+                </div>
+
+                <!-- Modal Footer Butonları -->
+                <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeModal('ticket-modal')" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        İptal
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 transition-all flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Kaydet</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: FİRMA & LOGO ÖZELLEŞTİRME AYARLARI (KALICI KAYIT)            -->
+    <!-- ===================================================================== -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <i data-lucide="building-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white">Firma & Marka Ayarları</h3>
+                        <p class="text-xs text-slate-500">Logo ve firma bilgileriniz kalıcı olarak kaydedilir</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('settings-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="settings-form" onsubmit="handleSettingsSubmit(event)" class="p-6 overflow-y-auto space-y-5">
+                <!-- Logo Önizleme ve Yükleme -->
+                <div class="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                    <div id="settings-logo-preview" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 overflow-hidden shadow-md">
+                        <i data-lucide="cpu" class="w-10 h-10"></i>
+                    </div>
+                    <div class="flex-1 text-center sm:text-left space-y-2">
+                        <h4 class="text-sm font-bold text-slate-900 dark:text-white">Firma Logosu</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Cihazınızdan bir logo seçin veya görsel bağlantısı yapıştırın.</p>
+                        <div class="flex flex-wrap justify-center sm:justify-start gap-2">
+                            <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                                <span>Logo Yükle</span>
+                                <input type="file" id="logo-file-input" accept="image/*" onchange="handleLogoFileUpload(event)" class="hidden">
+                            </label>
+                            <button type="button" onclick="downloadAppleTouchIcon()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors">
+                                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+                                <span>iPhone İkonu İndir</span>
+                            </button>
+                            <button type="button" onclick="clearCustomLogo()" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors">
+                                Varsayılana Dön
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Firma Bilgileri Form Alanları -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Harici Logo Görsel Bağlantısı (Opsiyonel URL)</label>
+                        <input type="url" id="setting-logo-url" oninput="previewLogoFromUrl(this.value)" placeholder="https://ornek.com/logo.png"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Firma / Teknik Servis Adı *</label>
+                            <input type="text" id="setting-business-name" required placeholder="Örn: ServisTech Bilişim"
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Firma Telefon Numarası</label>
+                            <input type="tel" id="setting-business-phone" placeholder="Örn: 0212 555 00 00"
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Firma Adresi / Şube Bilgisi</label>
+                        <input type="text" id="setting-business-address" placeholder="Örn: Teknoloji Cad. No:12 Merkez"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Veri Yedekleme & Geri Yükleme -->
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Veri Yedekleme & Geri Yükleme</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Tüm servis kayıtlarınızı JSON dosyası olarak dışa veya içe aktarın.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        <button type="button" onclick="exportBackupJSON()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold transition-colors">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>Yedek İndir (JSON)</span>
+                        </button>
+                        <label class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors">
+                            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                            <span>Yedekten Geri Yükle</span>
+                            <input type="file" accept=".json,application/json" onchange="importBackupJSON(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Apple Ana Ekran Bilgilendirme Kutusu -->
+                <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                    <div class="font-bold flex items-center gap-1.5">
+                        <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                        <span>Apple iPhone / iPad Ana Ekran İkonu Hakkında</span>
+                    </div>
+                    <p class="leading-relaxed">
+                        Apple Safari, güvenlik kısıtlaması nedeniyle sonradan yüklenen yerel resimleri "Ana Ekrana Ekle" önizlemesinde otomatik göstermez. İkonun ana ekranda görünmesi için:
+                        <br>1. Yukarıya <strong>https://...</strong> ile başlayan herkese açık bir logo linki yapıştırın, <strong>veya</strong>
+                        <br>2. <strong>"iPhone İkonu İndir"</strong> butonuna basıp iPhone'daki <strong>Kestirmeler (Shortcuts)</strong> uygulamasından <em>"Web Sitesini Aç"</em> kestirmesi oluşturarak galerinizdeki bu ikonu seçin.
+                    </p>
+                </div>
+
+                <!-- Kaydet / İptal Butonları -->
+                <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeModal('settings-modal')" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        İptal
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 transition-all flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Ayarları Kaydet</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 3: SERVİS FİŞİ & WHATSAPP PAYLAŞIM MODALI                       -->
+    <!-- ===================================================================== -->
+    <div id="receipt-modal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 no-print">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="receipt" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-900 dark:text-white">Servis Kabul & Teslim Fişi</h3>
+                        <p class="text-xs text-slate-500">Yazdırın veya müşteriye WhatsApp mesajı olarak kopyalayın</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('receipt-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Yazdırılabilir Servis Fişi Alanı -->
+            <div class="p-6 overflow-y-auto">
+                <div id="receipt-print-area" class="p-5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 space-y-4 text-sm">
+                    <!-- Fiş Üst Bilgi -->
+                    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div id="receipt-logo-box" class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center overflow-hidden shrink-0">
+                                <i data-lucide="cpu" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h4 id="receipt-business-name" class="font-extrabold text-base text-slate-900 dark:text-white">ServisTech</h4>
+                                <p id="receipt-business-contact" class="text-xs text-slate-500 dark:text-slate-400">0212 555 00 00 • Merkez Şube</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span id="receipt-code" class="font-mono font-extrabold text-sm px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">#SRV-0000</span>
+                            <p id="receipt-date" class="text-xs text-slate-400 mt-1">01.01.2026</p>
+                        </div>
+                    </div>
+
+                    <!-- Müşteri ve Cihaz Detayları -->
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
+                            <span class="text-slate-400 block mb-0.5">Müşteri Bilgisi</span>
+                            <strong id="receipt-cust-name" class="text-slate-900 dark:text-white block text-sm">-</strong>
+                            <span id="receipt-cust-phone" class="text-slate-600 dark:text-slate-300">-</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
+                            <span class="text-slate-400 block mb-0.5">Cihaz & Seri No</span>
+                            <strong id="receipt-device" class="text-slate-900 dark:text-white block text-sm">-</strong>
+                            <span class="text-slate-500">S/N: <span id="receipt-serial">-</span></span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 text-xs">
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
+                            <span class="text-slate-400 block mb-0.5">Teslim Alınan Aksesuarlar</span>
+                            <p id="receipt-accessories" class="font-medium text-slate-800 dark:text-slate-200">-</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
+                            <span class="text-slate-400 block mb-0.5">Bildirilen Arıza / Şikayet</span>
+                            <p id="receipt-issue" class="font-medium text-slate-800 dark:text-slate-200">-</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
+                            <span class="text-slate-400 block mb-0.5">Yapılan İşlemler / Teknisyen Notu</span>
+                            <p id="receipt-notes" class="font-medium text-slate-800 dark:text-slate-200">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Durum ve Tutar Alt Satırı -->
+                    <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block">Servis Durumu</span>
+                            <span id="receipt-status" class="font-bold text-xs text-blue-600 dark:text-blue-400">-</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[11px] text-slate-400 block">Toplam Servis Tutarı</span>
+                            <span id="receipt-cost" class="font-extrabold text-xl text-slate-900 dark:text-white">₺0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Alt İşlem Butonları -->
+            <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-end gap-2.5 shrink-0 no-print">
+                <button type="button" onclick="copyReceiptSummary()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    <span>WhatsApp Özeti Kopyala</span>
+                </button>
+                <button type="button" onclick="window.print()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                    <span>Fişi Yazdır</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 4: MOBİL ANA EKRANA EKLEME REHBERİ (PWA GUIDE MODAL)            -->
+    <!-- ===================================================================== -->
+    <div id="pwa-guide-modal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="smartphone" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-900 dark:text-white">Telefona Uygulama Olarak Kur</h3>
+                        <p class="text-xs text-slate-500">Ana ekranınızdan tek dokunuşla tam ekran açın</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('pwa-guide-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <div class="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-xs">
+                        <span>🍎 iPhone & iPad (Safari):</span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        1. Ekranın altındaki <strong>Paylaş (Yukarı Ok)</strong> simgesine dokunun.<br>
+                        2. Aşağı kaydırıp <strong>"Ana Ekrana Ekle"</strong> seçeneğine dokunun.<br>
+                        3. Sağ üstten <strong>"Ekle"</strong> butonuna basın.
+                    </p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <div class="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-xs">
+                        <span>🤖 Android Telefonlar (Chrome):</span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        1. Sağ üst köşedeki <strong>Üç Nokta (⋮)</strong> menüsüne dokunun.<br>
+                        2. <strong>"Ana ekrana ekle"</strong> veya <strong>"Uygulamayı yükle"</strong> seçeneğine basın.
+                    </p>
+                </div>
+            </div>
+
+            <button onclick="closeModal('pwa-guide-modal')" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors">
+                Anladım
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 5: SİLME ONAY MODALI (alert/confirm yerine özel UI)             -->
+    <!-- ===================================================================== -->
+    <div id="delete-confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto">
+                <i data-lucide="trash-2" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-base text-slate-900 dark:text-white">Servis Kaydını Sil</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Bu servis kaydı kalıcı olarak silinecektir. Devam etmek istiyor musunuz?</p>
+            </div>
+            <div class="flex gap-2.5 pt-2">
+                <button onclick="closeModal('delete-confirm-modal')" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Vazgeç
+                </button>
+                <button id="confirm-delete-btn" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-semibold text-white">
+                    Evet, Sil
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- JAVASCRIPT & FIREBASE KALICI BULUT SENKRONİZASYONU                    -->
+    <!-- ===================================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Uygulama Durumu (State)
+        let appState = {
+            tickets: [],
+            settings: {
+                businessName: "ServisTech",
+                businessPhone: "0212 555 00 00",
+                businessAddress: "Merkez Şube",
+                logoData: ""
+            },
+            tempLogoData: ""
+        };
+
+        let db = null;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-tech-service';
+        let activeReceiptTicket = null;
+        let ticketIdToDelete = null;
+
+        // =================================================================
+        // 1. BAŞLATMA, YEREL DEPOLAMA & BULUT SENKRONİZASYONU
+        // =================================================================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('servistech_tickets_v1', JSON.stringify(appState.tickets));
+                localStorage.setItem('servistech_settings_v1', JSON.stringify(appState.settings));
+            } catch (e) {
+                console.warn("Yerel kayıt hatası:", e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const savedTheme = localStorage.getItem('servistech_theme');
+                if (savedTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                }
+                const savedSettings = localStorage.getItem('servistech_settings_v1');
+                if (savedSettings) {
+                    appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
+                }
+                const savedTickets = localStorage.getItem('servistech_tickets_v1');
+                if (savedTickets) {
+                    appState.tickets = JSON.parse(savedTickets);
+                }
+            } catch (e) {
+                console.warn("Yerel veri okuma hatası:", e);
+            }
+        }
+
+        function updateSyncStatus(status, text) {
+            const dot = document.getElementById('sync-status-dot');
+            const label = document.getElementById('sync-status-text');
+            if (!dot || !label) return;
+            dot.classList.remove('bg-amber-500', 'bg-emerald-500', 'bg-blue-500', 'animate-pulse');
+            if (status === 'cloud') {
+                dot.classList.add('bg-emerald-500');
+            } else if (status === 'local') {
+                dot.classList.add('bg-blue-500');
+            } else {
+                dot.classList.add('bg-amber-500', 'animate-pulse');
+            }
+            label.textContent = text;
+        }
+
+        async function initApp() {
+            loadFromLocalStorage();
+            applyBrandSettingsToUI();
+            updateDashboardStats();
+            renderTickets();
+            lucide.createIcons();
+
+            // Firebase yapılandırması varsa bulut senkronizasyonunu başlat
+            try {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    const auth = getAuth(app);
+                    db = getFirestore(app);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                        currentUser = cred.user;
+                    } else {
+                        const cred = await signInAnonymously(auth);
+                        currentUser = cred.user;
+                    }
+
+                    // Marka ayarlarını gerçek zamanlı dinle
+                    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'brand_settings', 'main');
+                    onSnapshot(settingsRef, (snap) => {
+                        if (snap.exists()) {
+                            appState.settings = { ...appState.settings, ...snap.data() };
+                            saveToLocalStorage();
+                            applyBrandSettingsToUI();
+                        }
+                    }, (err) => console.warn("Ayar dinleme uyarısı:", err));
+
+                    // Servis kayıtlarını gerçek zamanlı dinle
+                    const ticketsCol = collection(db, 'artifacts', appId, 'public', 'data', 'service_tickets');
+                    onSnapshot(ticketsCol, (snapshot) => {
+                        const cloudTickets = [];
+                        snapshot.forEach((docSnap) => {
+                            cloudTickets.push(docSnap.data());
+                        });
+                        cloudTickets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                        appState.tickets = cloudTickets;
+                        saveToLocalStorage();
+                        updateDashboardStats();
+                        renderTickets();
+                        updateSyncStatus('cloud', 'Bulut Senkronize');
+                    }, (err) => {
+                        console.warn("Kayıt dinleme uyarısı:", err);
+                        updateSyncStatus('local', 'Cihaza Kayıtlı');
+                    });
+                } else {
+                    updateSyncStatus('local', 'Cihaza Kayıtlı');
+                }
+            } catch (error) {
+                console.warn("Çevrimdışı / yerel mod aktif:", error);
+                updateSyncStatus('local', 'Cihaza Kayıtlı');
+            }
+        }
+
+        // =================================================================
+        // 2. MARKA, İSİM & LOGO AYARLARI (KALICI KAYIT)
+        // =================================================================
+        function generateDefaultIconDataUrl(name) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createLinearGradient(0, 0, 512, 512);
+            grad.addColorStop(0, '#2563eb');
+            grad.addColorStop(1, '#4f46e5');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 512, 512);
+
+            const initials = (name || 'ST').trim().slice(0, 2).toUpperCase();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 210px Inter, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(initials, 256, 268);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        function updateMobileHomeScreenIcons(nameText, logoData) {
+            const iconHref = logoData || generateDefaultIconDataUrl(nameText);
+
+            // Eski link etiketlerini kaldırıp yenisini ekleyerek Safari'yi tetikle
+            const oldAppleIcon = document.getElementById('apple-touch-icon');
+            if (oldAppleIcon) oldAppleIcon.remove();
+
+            const newAppleIcon = document.createElement('link');
+            newAppleIcon.id = 'apple-touch-icon';
+            newAppleIcon.rel = 'apple-touch-icon';
+            newAppleIcon.sizes = '180x180';
+            newAppleIcon.href = iconHref;
+            document.head.appendChild(newAppleIcon);
+
+            const faviconEl = document.getElementById('app-favicon');
+            if (faviconEl) faviconEl.setAttribute('href', iconHref);
+
+            // Android ve Chrome için dinamik Manifest güncellemesi
+            const manifestObj = {
+                name: nameText,
+                short_name: nameText,
+                start_url: window.location.href,
+                display: "standalone",
+                background_color: "#0f172a",
+                theme_color: "#2563eb",
+                icons: [
+                    { src: iconHref, sizes: "192x192", type: "image/png" },
+                    { src: iconHref, sizes: "512x512", type: "image/png" }
+                ]
+            };
+            const manifestEl = document.getElementById('pwa-manifest');
+            if (manifestEl) {
+                const encoded = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+                manifestEl.setAttribute('href', encoded);
+            }
+        }
+
+        function applyBrandSettingsToUI() {
+            const { businessName, logoData } = appState.settings;
+            const nameText = businessName || 'ServisTech';
+            document.title = `${nameText} - Teknik Servis Yönetim Paneli`;
+
+            const headerName = document.getElementById('header-business-name');
+            if (headerName) headerName.textContent = nameText;
+
+            const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+            if (appleTitle) appleTitle.setAttribute('content', nameText);
+
+            // Apple iOS ve Android Ana Ekran ikonlarını güncelle
+            updateMobileHomeScreenIcons(nameText, logoData);
+
+            const headerLogo = document.getElementById('header-logo-container');
+            if (headerLogo) {
+                if (logoData) {
+                    headerLogo.className = "w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm shrink-0 overflow-hidden";
+                    headerLogo.innerHTML = `<img src="${escapeHtml(logoData)}" alt="Logo" class="w-full h-full object-contain p-0.5">`;
+                } else {
+                    headerLogo.className = "w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0 overflow-hidden";
+                    headerLogo.innerHTML = `<i data-lucide="cpu" class="w-6 h-6"></i>`;
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function updateSettingsLogoPreview(src) {
+            const preview = document.getElementById('settings-logo-preview');
+            if (!preview) return;
+            if (src) {
+                preview.className = "w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 overflow-hidden shadow-md";
+                preview.innerHTML = `<img src="${escapeHtml(src)}" alt="Logo Önizleme" class="w-full h-full object-contain p-1">`;
+            } else {
+                preview.className = "w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 overflow-hidden shadow-md";
+                preview.innerHTML = `<i data-lucide="cpu" class="w-10 h-10"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        window.downloadAppleTouchIcon = function() {
+            const nameText = document.getElementById('setting-business-name').value.trim() || appState.settings.businessName || 'ServisTech';
+            const src = appState.tempLogoData || generateDefaultIconDataUrl(nameText);
+
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, 512, 512);
+                ctx.drawImage(img, 0, 0, 512, 512);
+
+                const link = document.createElement('a');
+                link.download = `${nameText.toLowerCase().replace(/\s+/g, '_')}_iphone_ikon.png`;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                showToast('iPhone ana ekran ikonu indirildi! Kestirmeler uygulamasından ana ekrana ekleyebilirsiniz.', 'success');
+            };
+            img.onerror = function() {
+                showToast('Harici URL güvenlik nedeniyle indirilemedi, lütfen Logo Yükle ile cihazınızdan seçin.', 'error');
+            };
+            img.src = src;
+        };
+
+        window.openSettingsModal = function() {
+            const { businessName, businessPhone, businessAddress, logoData } = appState.settings;
+            appState.tempLogoData = logoData || '';
+            document.getElementById('setting-business-name').value = businessName || 'ServisTech';
+            document.getElementById('setting-business-phone').value = businessPhone || '';
+            document.getElementById('setting-business-address').value = businessAddress || '';
+            document.getElementById('setting-logo-url').value = (logoData && logoData.startsWith('http')) ? logoData : '';
+            updateSettingsLogoPreview(appState.tempLogoData);
+            openModal('settings-modal');
+        };
+
+        window.handleLogoFileUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 256;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round((h * maxDim) / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round((w * maxDim) / h);
+                            h = maxDim;
+                        }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    appState.tempLogoData = canvas.toDataURL('image/png', 0.85);
+                    document.getElementById('setting-logo-url').value = '';
+                    updateSettingsLogoPreview(appState.tempLogoData);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.previewLogoFromUrl = function(url) {
+            const trimmed = url.trim();
+            appState.tempLogoData = trimmed;
+            updateSettingsLogoPreview(trimmed);
+        };
+
+        window.clearCustomLogo = function() {
+            appState.tempLogoData = '';
+            document.getElementById('setting-logo-url').value = '';
+            const fileInput = document.getElementById('logo-file-input');
+            if (fileInput) fileInput.value = '';
+            updateSettingsLogoPreview('');
+        };
+
+        window.handleSettingsSubmit = async function(event) {
+            event.preventDefault();
+            const newSettings = {
+                businessName: document.getElementById('setting-business-name').value.trim() || 'ServisTech',
+                businessPhone: document.getElementById('setting-business-phone').value.trim(),
+                businessAddress: document.getElementById('setting-business-address').value.trim(),
+                logoData: appState.tempLogoData || ''
+            };
+
+            appState.settings = newSettings;
+            saveToLocalStorage();
+            applyBrandSettingsToUI();
+
+            if (db && currentUser) {
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'brand_settings', 'main'), newSettings);
+                } catch (err) {
+                    console.error("Ayarlar buluta kaydedilemedi:", err);
+                }
+            }
+
+            closeModal('settings-modal');
+            showToast('Firma adı ve logo ayarları kalıcı olarak kaydedildi!', 'success');
+        };
+
+        // =================================================================
+        // 3. SERVİS KAYITLARI CRUD & SEÇMELİ ALAN YARDIMCILARI
+        // =================================================================
+        window.toggleChip = function(btn) {
+            const isSelected = btn.classList.toggle('selected');
+            if (isSelected) {
+                btn.classList.remove('bg-slate-50', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-700');
+                btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-xs');
+            } else {
+                btn.classList.add('bg-slate-50', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-700');
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-xs');
+            }
+        };
+
+        window.appendPresetText = function(targetId, text, btn) {
+            const textarea = document.getElementById(targetId);
+            if (!textarea) return;
+            const currentVal = textarea.value.trim();
+            const parts = currentVal ? currentVal.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+            const existingIndex = parts.findIndex(p => p.toLowerCase() === text.toLowerCase());
+            if (existingIndex > -1) {
+                parts.splice(existingIndex, 1);
+                if (btn) btn.classList.remove('ring-2', 'ring-offset-1', 'ring-blue-500', 'font-bold');
+            } else {
+                parts.push(text);
+                if (btn) btn.classList.add('ring-2', 'ring-offset-1', 'ring-blue-500', 'font-bold');
+            }
+            textarea.value = parts.join(', ');
+        };
+
+        function resetFormChips(selectedAccessories = []) {
+            document.querySelectorAll('#accessories-selector .chip-btn').forEach(btn => {
+                const val = btn.getAttribute('data-value');
+                const shouldSelect = selectedAccessories.includes(val);
+                btn.classList.toggle('selected', shouldSelect);
+                if (shouldSelect) {
+                    btn.classList.remove('bg-slate-50', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-700');
+                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-xs');
+                } else {
+                    btn.classList.add('bg-slate-50', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-700');
+                    btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-xs');
+                }
+            });
+            document.querySelectorAll('.preset-chip').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-offset-1', 'ring-blue-500', 'font-bold');
+            });
+        }
+
+        function getSelectedAccessories() {
+            const selected = [];
+            document.querySelectorAll('#accessories-selector .chip-btn.selected').forEach(btn => {
+                selected.push(btn.getAttribute('data-value'));
+            });
+            return selected;
+        }
+
+        window.openNewTicketModal = function() {
+            document.getElementById('ticket-form').reset();
+            resetFormChips([]);
+            document.getElementById('ticket-id').value = '';
+            document.getElementById('ticket-code').value = 'SRV-' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('ticket-modal-title').textContent = 'Yeni Servis Kaydı';
+            document.getElementById('ticket-modal-subtitle').textContent = 'Müşteri ve cihaz bilgilerini eksiksiz doldurun';
+            openModal('ticket-modal');
+        };
+
+        window.openEditTicketModal = function(id) {
+            const ticket = appState.tickets.find(t => t.id === id);
+            if (!ticket) return;
+
+            resetFormChips(ticket.accessories || []);
+            document.getElementById('ticket-id').value = ticket.id;
+            document.getElementById('ticket-code').value = ticket.code;
+            document.getElementById('cust-name').value = ticket.custName || '';
+            document.getElementById('cust-phone').value = ticket.custPhone || '';
+            document.getElementById('device-type').value = ticket.deviceType || 'Laptop / Notebook';
+            document.getElementById('device-model').value = ticket.deviceModel || '';
+            document.getElementById('device-serial').value = ticket.deviceSerial || '';
+            document.getElementById('issue-desc').value = ticket.issueDesc || '';
+            document.getElementById('tech-notes').value = ticket.techNotes || '';
+            document.getElementById('ticket-status').value = ticket.status || 'Kabul Edildi';
+            document.getElementById('ticket-cost').value = ticket.cost || 0;
+
+            document.getElementById('ticket-modal-title').textContent = `Kaydı Düzenle (#${ticket.code})`;
+            document.getElementById('ticket-modal-subtitle').textContent = 'Servis durumu, işlem notu veya ücreti güncelleyin';
+            openModal('ticket-modal');
+        };
+
+        window.handleTicketSubmit = async function(event) {
+            event.preventDefault();
+            const existingId = document.getElementById('ticket-id').value;
+            const id = existingId || ('ticket_' + Date.now());
+            const existingTicket = appState.tickets.find(t => t.id === id);
+
+            const ticketData = {
+                id: id,
+                code: document.getElementById('ticket-code').value || ('SRV-' + Math.floor(1000 + Math.random() * 9000)),
+                custName: document.getElementById('cust-name').value.trim(),
+                custPhone: document.getElementById('cust-phone').value.trim(),
+                deviceType: document.getElementById('device-type').value,
+                deviceModel: document.getElementById('device-model').value.trim(),
+                deviceSerial: document.getElementById('device-serial').value.trim(),
+                accessories: getSelectedAccessories(),
+                issueDesc: document.getElementById('issue-desc').value.trim(),
+                techNotes: document.getElementById('tech-notes').value.trim(),
+                status: document.getElementById('ticket-status').value,
+                cost: Number(document.getElementById('ticket-cost').value) || 0,
+                createdAt: existingTicket ? existingTicket.createdAt : Date.now(),
+                updatedAt: Date.now()
+            };
+
+            await saveTicketToCloud(ticketData);
+            closeModal('ticket-modal');
+            showToast(existingId ? 'Servis kaydı güncellendi.' : 'Yeni servis kaydı oluşturuldu!', 'success');
+        };
+
+        async function saveTicketToCloud(ticketData) {
+            const idx = appState.tickets.findIndex(t => t.id === ticketData.id);
+            if (idx > -1) {
+                appState.tickets[idx] = ticketData;
+            } else {
+                appState.tickets.unshift(ticketData);
+            }
+            saveToLocalStorage();
+            updateDashboardStats();
+            renderTickets();
+
+            if (db && currentUser) {
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'service_tickets', ticketData.id), ticketData);
+                } catch (err) {
+                    console.error("Bulut kayıt hatası:", err);
+                }
+            }
+        }
+
+        window.quickUpdateStatus = async function(id, newStatus) {
+            const ticket = appState.tickets.find(t => t.id === id);
+            if (!ticket) return;
+            const updated = { ...ticket, status: newStatus, updatedAt: Date.now() };
+            await saveTicketToCloud(updated);
+            showToast(`Durum güncellendi: ${newStatus}`, 'info');
+        };
+
+        window.promptDeleteTicket = function(id) {
+            ticketIdToDelete = id;
+            openModal('delete-confirm-modal');
+        };
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async function() {
+            if (!ticketIdToDelete) return;
+            const id = ticketIdToDelete;
+            ticketIdToDelete = null;
+
+            appState.tickets = appState.tickets.filter(t => t.id !== id);
+            saveToLocalStorage();
+            updateDashboardStats();
+            renderTickets();
+            closeModal('delete-confirm-modal');
+
+            if (db && currentUser) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'service_tickets', id));
+                } catch (err) {
+                    console.error("Bulut silme hatası:", err);
+                }
+            }
+            showToast('Servis kaydı silindi.', 'info');
+        });
+
+        // =================================================================
+        // 4. İSTATİSTİK & KART LİSTELEME (RENDER)
+        // =================================================================
+        function updateDashboardStats() {
+            const tickets = appState.tickets;
+            const waiting = tickets.filter(t => t.status === 'Kabul Edildi').length;
+            const inProgress = tickets.filter(t => t.status === 'Onarımda' || t.status === 'Arıza Tespiti').length;
+            const parts = tickets.filter(t => t.status === 'Parça Bekliyor').length;
+            const completed = tickets.filter(t => t.status === 'Hazır / Teslime Hazır' || t.status === 'Teslim Edildi').length;
+            const totalRevenue = tickets.reduce((sum, t) => sum + (Number(t.cost) || 0), 0);
+
+            document.getElementById('stat-waiting').textContent = waiting;
+            document.getElementById('stat-inprogress').textContent = inProgress;
+            document.getElementById('stat-parts').textContent = parts;
+            document.getElementById('stat-completed').textContent = completed;
+            document.getElementById('stat-revenue').textContent = '₺' + totalRevenue.toLocaleString('tr-TR');
+
+            const sidebarBadge = document.getElementById('sidebar-badge-count');
+            if (sidebarBadge) sidebarBadge.textContent = tickets.length;
+        }
+
+        function getStatusBadgeStyle(status) {
+            switch (status) {
+                case 'Kabul Edildi':
+                    return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60';
+                case 'Arıza Tespiti':
+                    return 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800/60';
+                case 'Parça Bekliyor':
+                    return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800/60';
+                case 'Onarımda':
+                    return 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800/60';
+                case 'Hazır / Teslime Hazır':
+                    return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60';
+                case 'Teslim Edildi':
+                    return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+                default:
+                    return 'bg-blue-50 text-blue-700 border-blue-200';
+            }
+        }
+
+        window.renderTickets = function() {
+            const grid = document.getElementById('tickets-grid');
+            const emptyState = document.getElementById('empty-state');
+            const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+            const statusFilter = document.getElementById('status-filter')?.value || 'ALL';
+
+            const filtered = appState.tickets.filter(t => {
+                const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
+                const matchesQuery = !query ||
+                    (t.custName && t.custName.toLowerCase().includes(query)) ||
+                    (t.custPhone && t.custPhone.toLowerCase().includes(query)) ||
+                    (t.deviceModel && t.deviceModel.toLowerCase().includes(query)) ||
+                    (t.code && t.code.toLowerCase().includes(query)) ||
+                    (t.issueDesc && t.issueDesc.toLowerCase().includes(query));
+                return matchesStatus && matchesQuery;
+            });
+
+            document.getElementById('filtered-count-badge').textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                lucide.createIcons();
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = filtered.map(t => {
+                const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString('tr-TR') : '';
+                const badgeClass = getStatusBadgeStyle(t.status);
+                return `
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                    <div>
+                        <div class="flex items-start justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">#${escapeHtml(t.code)}</span>
+                                <span class="text-xs text-slate-400">${dateStr}</span>
+                            </div>
+                            <select onchange="quickUpdateStatus('${t.id}', this.value)" class="text-xs font-semibold px-2.5 py-1 rounded-lg border cursor-pointer focus:outline-none ${badgeClass}">
+                                <option value="Kabul Edildi" ${t.status === 'Kabul Edildi' ? 'selected' : ''}>🟡 Kabul Edildi</option>
+                                <option value="Arıza Tespiti" ${t.status === 'Arıza Tespiti' ? 'selected' : ''}>🔵 Arıza Tespiti</option>
+                                <option value="Parça Bekliyor" ${t.status === 'Parça Bekliyor' ? 'selected' : ''}>🟣 Parça Bekliyor</option>
+                                <option value="Onarımda" ${t.status === 'Onarımda' ? 'selected' : ''}>🟠 Onarımda</option>
+                                <option value="Hazır / Teslime Hazır" ${t.status === 'Hazır / Teslime Hazır' ? 'selected' : ''}>🟢 Teslime Hazır</option>
+                                <option value="Teslim Edildi" ${t.status === 'Teslim Edildi' ? 'selected' : ''}>⚪ Teslim Edildi</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <h3 class="font-bold text-base text-slate-900 dark:text-white">${escapeHtml(t.custName)}</h3>
+                            <a href="tel:${escapeHtml(t.custPhone)}" class="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline mt-0.5">
+                                <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+                                <span>${escapeHtml(t.custPhone)}</span>
+                            </a>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
+                            <div class="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                                <i data-lucide="laptop" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                                <span>${escapeHtml(t.deviceType)} • ${escapeHtml(t.deviceModel)}</span>
+                            </div>
+                            ${(t.accessories && t.accessories.length > 0) ? `
+                            <div class="flex flex-wrap gap-1 pt-0.5">
+                                ${t.accessories.map(acc => `<span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-200">${escapeHtml(acc)}</span>`).join('')}
+                            </div>` : ''}
+                            <p class="text-slate-600 dark:text-slate-400 line-clamp-2">
+                                <strong class="text-slate-700 dark:text-slate-300">Arıza:</strong> ${escapeHtml(t.issueDesc)}
+                            </p>
+                            ${t.techNotes ? `<p class="text-blue-600 dark:text-blue-400 line-clamp-1"><strong>İşlem:</strong> ${escapeHtml(t.techNotes)}</p>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                        <div>
+                            <span class="text-[11px] text-slate-400 block">Servis Tutarı</span>
+                            <span class="font-extrabold text-base text-slate-900 dark:text-white">₺${Number(t.cost || 0).toLocaleString('tr-TR')}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="openReceiptModal('${t.id}')" title="Servis Fişi / Paylaş" class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition-colors">
+                                <i data-lucide="printer" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="openEditTicketModal('${t.id}')" title="Düzenle" class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-colors">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="promptDeleteTicket('${t.id}')" title="Sil" class="p-2 rounded-xl bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-100 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        };
+
+        // =================================================================
+        // 5. SERVİS FİŞİ & WHATSAPP ÖZET PAYLAŞIMI
+        // =================================================================
+        window.openReceiptModal = function(id) {
+            const ticket = appState.tickets.find(t => t.id === id);
+            if (!ticket) return;
+            activeReceiptTicket = ticket;
+
+            const { businessName, businessPhone, businessAddress, logoData } = appState.settings;
+            document.getElementById('receipt-business-name').textContent = businessName || 'ServisTech';
+            document.getElementById('receipt-business-contact').textContent = [businessPhone, businessAddress].filter(Boolean).join(' • ');
+
+            const receiptLogoBox = document.getElementById('receipt-logo-box');
+            if (logoData) {
+                receiptLogoBox.innerHTML = `<img src="${escapeHtml(logoData)}" alt="Logo" class="w-full h-full object-cover">`;
+            } else {
+                receiptLogoBox.innerHTML = `<i data-lucide="cpu" class="w-6 h-6"></i>`;
+            }
+
+            document.getElementById('receipt-code').textContent = '#' + ticket.code;
+            document.getElementById('receipt-date').textContent = ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
+            document.getElementById('receipt-cust-name').textContent = ticket.custName || '-';
+            document.getElementById('receipt-cust-phone').textContent = ticket.custPhone || '-';
+            document.getElementById('receipt-device').textContent = `${ticket.deviceType} - ${ticket.deviceModel}`;
+            document.getElementById('receipt-serial').textContent = ticket.deviceSerial || '-';
+            document.getElementById('receipt-accessories').textContent = (ticket.accessories && ticket.accessories.length > 0) ? ticket.accessories.join(', ') : 'Sadece Cihaz (Aksesuar Alınmadı)';
+            document.getElementById('receipt-issue').textContent = ticket.issueDesc || '-';
+            document.getElementById('receipt-notes').textContent = ticket.techNotes || 'Henüz işlem notu girilmedi.';
+            document.getElementById('receipt-status').textContent = ticket.status;
+            document.getElementById('receipt-cost').textContent = '₺' + Number(ticket.cost || 0).toLocaleString('tr-TR');
+
+            openModal('receipt-modal');
+        };
+
+        window.copyReceiptSummary = function() {
+            if (!activeReceiptTicket) return;
+            const t = activeReceiptTicket;
+            const bName = appState.settings.businessName || 'ServisTech';
+            const accText = (t.accessories && t.accessories.length > 0) ? t.accessories.join(', ') : 'Sadece Cihaz';
+            const summaryText =
+`🔧 *${bName} - Servis Bilgilendirme*
+📋 Takip No: #${t.code}
+👤 Müşteri: ${t.custName}
+💻 Cihaz: ${t.deviceModel}
+🎒 Teslim Alınanlar: ${accText}
+⚠️ Arıza: ${t.issueDesc}
+🛠️ Yapılacak İşlem: ${t.techNotes || '-'}
+📌 Durum: *${t.status}*
+💳 Tutar: *₺${Number(t.cost || 0).toLocaleString('tr-TR')}*`;
+
+            const textArea = document.createElement('textarea');
+            textArea.value = summaryText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Servis özeti panoya kopyalandı! WhatsApp üzerinden yapıştırabilirsiniz.', 'success');
+            } catch (err) {
+                showToast('Kopyalama başarısız oldu.', 'error');
+            }
+            document.body.removeChild(textArea);
+        };
+
+        // =================================================================
+        // 6. YEDEKLEME (EXPORT) & GERİ YÜKLEME (IMPORT JSON)
+        // =================================================================
+        window.exportBackupJSON = function() {
+            const backupObj = {
+                exportedAt: new Date().toISOString(),
+                settings: appState.settings,
+                tickets: appState.tickets
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `servistech_yedek_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+            showToast('Yedek dosyası indirildi.', 'success');
+        };
+
+        window.importBackupJSON = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.settings) {
+                        appState.settings = parsed.settings;
+                        saveToLocalStorage();
+                        applyBrandSettingsToUI();
+                        if (db && currentUser) {
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'brand_settings', 'main'), parsed.settings);
+                        }
+                    }
+                    if (Array.isArray(parsed.tickets)) {
+                        for (const item of parsed.tickets) {
+                            await saveTicketToCloud(item);
+                        }
+                    }
+                    closeModal('settings-modal');
+                    showToast('Yedek başarıyla geri yüklendi!', 'success');
+                } catch (err) {
+                    showToast('Geçersiz yedek dosyası.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        // =================================================================
+        // 7. NAVİGASYON, TEMA, FİLTRE VE YARDIMCI FONKSİYONLAR
+        // =================================================================
+        window.toggleDarkMode = function() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('servistech_theme', isDark ? 'dark' : 'light');
+        };
+
+        window.switchTab = function(tabName) {
+            const dashSec = document.getElementById('section-dashboard');
+            const tickSec = document.getElementById('section-tickets');
+
+            if (tabName === 'dashboard') {
+                dashSec.classList.remove('hidden');
+                tickSec.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                tickSec.scrollIntoView({ behavior: 'smooth' });
+            }
+        };
+
+        window.filterByStatusFromCard = function(statusValue) {
+            document.getElementById('status-filter').value = statusValue;
+            renderTickets();
+            document.getElementById('section-tickets').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.resetFilters = function() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('status-filter').value = 'ALL';
+            renderTickets();
+        };
+
+        window.openModal = function(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+            lucide.createIcons();
+        };
+
+        window.closeModal = function(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        };
+
+        window.openPwaGuideModal = function() {
+            openModal('pwa-guide-modal');
+        };
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-red-600 text-white',
+                info: 'bg-slate-900 dark:bg-slate-800 text-white border border-slate-700'
+            };
+            toast.className = `${bgColors[type] || bgColors.info} px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2.5 pointer-events-auto transition-all transform translate-y-0 opacity-100`;
+            toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 shrink-0"></i><span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Uygulamayı başlat
+        initApp();
+    </script>
+</body>
+</html>
